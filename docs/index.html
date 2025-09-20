@@ -16,18 +16,19 @@
   </head>
   <body>
     <header>
-      <h1>VescuEye</h1>
-      <nav>
-        <ul>
-          <li><a href="#about">About</a></li>
-          <li><a href="#architecture">Architecture</a></li>
-          <li><a href="#implementation">Implementation</a></li>
-          <li><a href="#testing">Testing</a></li>
-          <li><a href="#budget">Budget</a></li>
-          <li><a href="#team">Team</a></li>
-        </ul>
-      </nav>
-    </header>
+    <h1>VescuEye</h1>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <nav>
+      <ul id="nav-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#implementation">Implementation</a></li>
+        <li><a href="#testing">Testing</a></li>
+        <li><a href="#budget">Budget</a></li>
+        <li><a href="#team">Team</a></li>
+      </ul>
+    </nav>
+  </header>
 
     <section id="about">
       <div>
@@ -792,5 +793,10 @@
     </footer>
 
     <script src="assets/script.js"></script>
+    <script>
+    function toggleMenu() {
+      document.getElementById("nav-links").classList.toggle("show");
+    }
+  </script>
   </body>
 </html>
