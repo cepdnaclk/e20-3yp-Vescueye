@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { LogBox, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,14 +19,19 @@ import ForgotPassword from './screens/ForgotPassword';
 import LiveFlapScreen from './screens/LiveFlapScreen';
 import DoctorDashboard from './screens/DoctorDashboard';
 import ImageViewer from './screens/ImageViewer';
+import ResetPassword from './screens/ResetPassword';
+import EditProfileScreen from './screens/EditProfileScreen';
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['Warning: ...']);
 
 const Stack = createStackNavigator();
 
-// ✅ Show notifications even when app is foregrounded
+// Update with your backend base URL (no trailing slash)
+const BASE_URL = 'http://172.20.10.6:5001/api';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowAlert: true,  //shouldShowBanner
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -36,72 +41,49 @@ export default function App() {
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
   useEffect(() => {
-    registerForPushNotificationsAsync();
 
-    // ✅ Handle tap on notification
+    // Listen for notification responses (user taps on notification)
     const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
-      const data = response.notification.request.content.data;
-      
-      if (data.navigateTo) {
-        console.log('📱 Notification tapped, checking auth status...');
-        
-        // Check if user is logged in
+      try {
+        const data = response.notification.request.content.data;
+        const { navigateTo, params } = data || {};
         const isLoggedIn = await checkAuthStatus();
-        
+
+      if (navigateTo) {
+
         if (isLoggedIn) {
-          // User is logged in, navigate directly
-          console.log('✅ User logged in, navigating to:', data.navigateTo);
-          setTimeout(() => {
-            if (navigationRef.current?.isReady()) {
-              navigationRef.current.navigate(data.navigateTo, data.params || {});
-            }
-          }, 100);
+          navigationRef.current?.navigate(navigateTo, params || {});
         } else {
-          // User not logged in, store the intended destination and navigate to login
-          console.log('🔐 User not logged in, redirecting to login...');
-          setPendingNavigation({ screen: data.navigateTo, params: data.params || {} });
-          
-          setTimeout(() => {
-            if (navigationRef.current?.isReady()) {
-              navigationRef.current.navigate('Login');
-            }
-          }, 100);
+          setPendingNavigation({ screen: navigateTo, params: params || {} });
+          navigationRef.current?.navigate('Login');
         }
+      }
+      } catch (err) {
+        console.error('Error handling notification response:', err);
       }
     });
 
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, []);
 
-  // Function to check authentication status
+  // Check if user is logged in by verifying stored token
   const checkAuthStatus = async () => {
     try {
-      // Check your auth method - could be AsyncStorage, SecureStore, or your auth context
       const token = await AsyncStorage.getItem('userToken');
-      const userId = await AsyncStorage.getItem('userId');
-      
-      // You can also check if token is still valid by making an API call
-      return !!(token && userId);
-      
-    } catch (error) {
-      console.log('❌ Error checking auth status:', error);
+      return !!token;
+    } catch {
       return false;
     }
   };
 
-  // Function to handle successful login
+  // After login success, navigate to pending screen if any
   const handleLoginSuccess = () => {
     if (pendingNavigation) {
-      console.log('🎯 Login successful, navigating to pending destination:', pendingNavigation.screen);
-      
-      setTimeout(() => {
-        if (navigationRef.current?.isReady()) {
-          navigationRef.current.navigate(pendingNavigation.screen, pendingNavigation.params);
-          setPendingNavigation(null); // Clear pending navigation
-        }
-      }, 100);
+      const { screen, params } = pendingNavigation;
+      navigationRef.current?.navigate(screen, params);
+      setPendingNavigation(null);
+    } else {
+      navigationRef.current?.navigate('Home');
     }
   };
 
@@ -112,8 +94,8 @@ export default function App() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login">
           {(props) => (
-            <LoginScreen 
-              {...props} 
+            <LoginScreen
+              {...props}
               onLoginSuccess={handleLoginSuccess}
               pendingNavigation={pendingNavigation}
             />
@@ -122,46 +104,16 @@ export default function App() {
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
+        <Stack.Screen name="ResetPassword" component={ResetPassword} />
         <Stack.Screen name="LiveFlapScreen" component={LiveFlapScreen} />
         <Stack.Screen name="Dashboard" component={DoctorDashboard} />
         <Stack.Screen name="Patients" component={PatientScreen} />
         <Stack.Screen name="ImageViewer" component={ImageViewer} />
+     
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
-async function registerForPushNotificationsAsync() {
-  if (!Device.isDevice) {
-    console.log('❌ Must use physical device for Push Notifications');
-    return;
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.log('❌ Permission not granted for push notifications.');
-    return;
-  }
-
-  try {
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    console.log('✅ Expo Push Token:', tokenData.data);
-  } catch (err) {
-    console.log('❌ Error getting Expo Push Token:', err);
-  }
-
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-    });
-  }
-}
