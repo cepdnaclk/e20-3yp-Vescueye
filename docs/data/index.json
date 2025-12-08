@@ -27,5 +27,7 @@
       "email": "isurunawinne@eng.pdn.ac.lk"
     }
   ],
-  "tags": ["Embedded Systems","Web","Biomedical"]
+  "tags": ["Embedded Systems","Web","Biomedical"],
+  "image": "cover_page.jpg",
+  "thumbnail": "thumbnail.jpg"
 }
